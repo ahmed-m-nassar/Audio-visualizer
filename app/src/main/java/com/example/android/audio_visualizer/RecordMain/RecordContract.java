@@ -23,10 +23,11 @@ public interface RecordContract {
         public void enableStopButton();
         public void disableStopButton();
 
-        public void startTimer();
-        public void pauseTimer();
-        public void resetTimer();
-        public void resumeTimer();
+        public String getCurrentTimerTime();
+        public void   startTimer();
+        public void   pauseTimer();
+        public void   resetTimer();
+        public void   resumeTimer();
 
         public void hideRecordName();
         public void showRecordName(String name);
@@ -39,13 +40,9 @@ public interface RecordContract {
         public void requestWriteExternalStoragePermission();
         public void requestReadExternalStoragePermission();
 
-        public void  prepareRecorder(File audioFile) throws IOException;
-        public void  pauseRecorder();
-        public void  stopRecorder();
-        public void resumeRecorder();
+        public void startCameraIntent();
 
-
-
+        void showMessage(String message);
     }
 
     interface Presenter {
@@ -54,6 +51,7 @@ public interface RecordContract {
         public void pauseButtonClicked();
         public void stopButtonClicked();
         public void takePictureButtonClicked();
-        public void recordsListButtonClicked();
+        public void savePicture(String path);
+
     }
 }

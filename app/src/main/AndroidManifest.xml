@@ -18,7 +18,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".RecordsList.RecordsListActivity"></activity>
+        <activity android:name=".AudioPlaying.AudioPlayingActivity"></activity>
+        <activity
+            android:name=".AudiosList.AudiosListActivity"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
         <activity
             android:name=".RecordMain.RecordActivity"
             android:theme="@style/AppTheme.NoActionBar">
@@ -28,6 +31,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
     </application>
 
 </manifest>

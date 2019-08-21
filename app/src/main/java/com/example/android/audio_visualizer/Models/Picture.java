@@ -5,7 +5,8 @@ public class Picture {
     private String mPath;
     private String mDate;
 
-    public Picture(String mName, String mPath, String mDate) {
+
+    public Picture(String mName, String mPath, String mDate ) {
         this.mName = mName;
         this.mPath = mPath;
         this.mDate = mDate;
@@ -22,4 +23,5 @@ public class Picture {
     public String getmDate() {
         return mDate;
     }
+
 }

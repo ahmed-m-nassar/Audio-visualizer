@@ -1,25 +1,25 @@
 package com.example.android.audio_visualizer.Models;
 
 public class Audio_Picture {
-    private String mAudioName;
-    private String mPictureName;
-    private int    mSnapTime;
+    private String mAudioPath;
+    private String mPicturePath;
+    private String mSnapTime;
 
-    public Audio_Picture(String mAudioName, String mPictureName, int mSnapTime) {
-        this.mAudioName = mAudioName;
-        this.mPictureName = mPictureName;
+    public Audio_Picture(String mAudioPath, String mPicturePath, String mSnapTime) {
+        this.mAudioPath = mAudioPath;
+        this.mPicturePath = mPicturePath;
         this.mSnapTime = mSnapTime;
     }
 
-    public String getmAudioName() {
-        return mAudioName;
+    public String getmAudioPath() {
+        return mAudioPath;
     }
 
-    public String getmPictureName() {
-        return mPictureName;
+    public String getmPicturePath() {
+        return mPicturePath;
     }
 
-    public int getmSnapTime() {
+    public String getmSnapTime() {
         return mSnapTime;
     }
 }

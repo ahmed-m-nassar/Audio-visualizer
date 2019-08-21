@@ -1,6 +1,7 @@
 package com.example.android.audio_visualizer.RecordMain.Data;
 
 import android.content.ContentValues;
+import android.database.Cursor;
 
 import com.example.android.audio_visualizer.Base.DataBase.AudioVisualizerContract;
 import com.example.android.audio_visualizer.Base.DataBase.DBHelper;
@@ -40,10 +41,9 @@ public class RecordLocalServicesImpl extends DBHelper implements RecordLocalServ
     @Override
     public boolean addAudioPicture(Audio_Picture audioPicture) {
         ContentValues content = new ContentValues();
-        content.put(AudioVisualizerContract.Audio_Picture.Column_AudioName  , audioPicture.getmAudioName());
-        content.put(AudioVisualizerContract.Audio_Picture.Column_PictureName, audioPicture.getmPictureName());
-        content.put(AudioVisualizerContract.Audio_Picture.Column_SnapTime   , audioPicture.getmSnapTime());
-
-        return insert(AudioVisualizerContract.Picture.Table_Name,content);
+        content.put(AudioVisualizerContract.Audio_Picture.Column_AudioPath  , audioPicture.getmAudioPath());
+        content.put(AudioVisualizerContract.Audio_Picture.Column_PicturePath, audioPicture.getmPicturePath());
+        content.put(AudioVisualizerContract.Audio_Picture.Column_SnapTime, audioPicture.getmSnapTime());
+        return insert(AudioVisualizerContract.Audio_Picture.Table_Name,content);
     }
 }

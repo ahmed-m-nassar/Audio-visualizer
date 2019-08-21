@@ -10,8 +10,8 @@ import com.example.android.audio_visualizer.Base.DataBase.AudioVisualizerContrac
 import com.example.android.audio_visualizer.Base.DataBase.AudioVisualizerContract.Audio_Picture;
 
 public class DBHelper extends SQLiteOpenHelper {
-    private static final String Database_Name = "StudyStream.db";
-    private static final int Database_Version = 1;
+    private static final String Database_Name = "AudioVisualizer.db";
+    private static final int Database_Version = 3;
 
     private SQLiteDatabase db;
 
@@ -24,26 +24,27 @@ public class DBHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         this.db = db;
 
-        final String SQL_CREATE_AUDIO = "CREATE TABLE " + AudioVisualizerContract.Audio.Table_Name
-                + "( " + Audio.Column_Name + " TEXT PRIMARY KEY , "
+        final String SQL_CREATE_AUDIO = "CREATE TABLE " + Audio.Table_Name
+                + "( " + Audio.Column_Path + " TEXT PRIMARY KEY, "
+                + Audio.Column_Name + " TEXT NOT NULL , "
                 + Audio.Column_Date + " TEXT NOT NULL, "
-                + Audio.Column_Path + " TEXT NOT NULL, "
                 + Audio.Column_Size + " INTEGER NOT NULL, "
                 + Audio.Column_Duration + " INTEGER NOT NULL "
                 + ")";
         db.execSQL(SQL_CREATE_AUDIO);
 
         final String SQL_CREATE_PICTURE = "CREATE TABLE " + Picture.Table_Name
-                + "( " + Picture.Column_Name + " TEXT PRIMARY KEY , "
-                + Picture.Column_Path + " TEXT NOT NULL, "
+                + "( " + Picture.Column_Path + " TEXT PRIMARY KEY, "
+                + Picture.Column_Name + " TEXT NOT NULL , "
                 + Picture.Column_Date + " TEXT NOT NULL "
                 + ")";
         db.execSQL(SQL_CREATE_PICTURE);
 
         final String SQL_CREATE_AUDIO_PICTURE = "CREATE TABLE " + Audio_Picture.Table_Name
-                + "( " + Audio_Picture.Column_AudioName + " TEXT PRIMARY KEY , "
-                + Audio_Picture.Column_PictureName + " TEXT NOT NULL, "
-                + Audio_Picture.Column_SnapTime + " INTEGER NOT NULL "
+                + "( " + Audio_Picture.Column_AudioPath + " TEXT NOT NULL  , "
+                + Audio_Picture.Column_PicturePath + " TEXT NOT NULL  ,"
+                + Audio_Picture.Column_SnapTime + " TEXT NOT NULL  ,"
+                +" PRIMARY KEY(" +  Audio_Picture.Column_AudioPath + "," + Audio_Picture.Column_PicturePath + ")"
                 + ")";
         db.execSQL(SQL_CREATE_AUDIO_PICTURE);
 
@@ -56,7 +57,7 @@ public class DBHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS "+ Audio_Picture.Table_Name);
         onCreate(db);
     }
-    public Cursor Select(String query, String Argument[])
+    public Cursor select(String query, String Argument[])
     {
         SQLiteDatabase db=this.getReadableDatabase();
         Cursor cu= db.rawQuery(query, Argument);

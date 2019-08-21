@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Audio_Visualizer</string>
+    <string name="AudioPathExtra">AudioPath</string>
 </resources>
