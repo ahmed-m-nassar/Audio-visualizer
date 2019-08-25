@@ -11,19 +11,19 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
-        android:name=".Base.MyApp"
+        android:name=".base.MyApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".AudioPlaying.AudioPlayingActivity"></activity>
+        <activity android:name=".audio_playing.AudioPlayingActivity"></activity>
         <activity
-            android:name=".AudiosList.AudiosListActivity"
+            android:name=".audios_list.AudiosListActivity"
             android:theme="@style/AppTheme.NoActionBar"></activity>
         <activity
-            android:name=".RecordMain.RecordActivity"
+            android:name=".record_main.RecordActivity"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -31,7 +31,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        <service android:name=".record_main.service.RecordMainService"/>
+        <service android:name=".audio_playing.service.AudioPlayingService"/>
     </application>
 
 </manifest>

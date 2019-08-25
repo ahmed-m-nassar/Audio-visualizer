@@ -12,7 +12,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="@color/white"
-        tools:context=".RecordMain.RecordActivity">
+        tools:context=".record_main.RecordActivity">
         <ImageView
             android:id="@+id/Record_Mic_ImageView"
             android:layout_marginTop="@dimen/space8"
