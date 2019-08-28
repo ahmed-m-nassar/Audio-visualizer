@@ -1,12 +1,16 @@
 package com.example.android.audio_visualizer.record_main;
 
 import android.Manifest;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.IBinder;
 import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.support.annotation.Nullable;
@@ -14,6 +18,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Chronometer;
 import android.widget.ImageButton;
@@ -23,17 +28,24 @@ import android.widget.Toast;
 
 import com.example.android.audio_visualizer.audios_list.AudiosListActivity;
 import com.example.android.audio_visualizer.R;
+import com.example.android.audio_visualizer.models.Picture;
 import com.example.android.audio_visualizer.record_main.service.RecordMainService;
+import com.example.android.audio_visualizer.record_main.shared_preferences.RecordSharedPreferences;
+import com.example.android.audio_visualizer.utils.FilesUtils;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
 public class RecordActivity extends AppCompatActivity implements RecordContract.View {
-
+    private static final String TAG = "RecordActivity";
+    
     //presenter
     private RecordPresenter     mPresenter;
 
@@ -51,7 +63,6 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
 
     //chronometer variables
     private long    mChronometerPauseOffset;
-    private long    mChronometerRunningOffset;
     private boolean mChronometerRunning;
 
     //requests
@@ -60,6 +71,8 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
     //service variables
     RecordMainService mService;
     boolean mServiceBound = false;
+
+    boolean mRecordingRunning = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,13 +155,22 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
         });
         //////////////////////////////////////////////////////////////////////////
 
-
-        //initializing UI
+        //initializing Ui
         initializeUI();
 
-        //checking if the user deleted audio or picture picture file
+        //load shared preferences
+        loadSharedPreferences();
+
+        //checking if the user deleted audio or picture picture file outside application
         mPresenter.checkFiles();
     }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        saveSharedPreferences();
+    }
+
 
     @Override
     public void showPauseButton() {
@@ -302,14 +324,12 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
                 String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},1000);
     }
 
+
     @Override
     public void requestReadExternalStoragePermission() {
         ActivityCompat.requestPermissions(this, new
                 String[]{Manifest.permission.READ_EXTERNAL_STORAGE},1000);
     }
-
-
-
 
 
     @Override
@@ -334,16 +354,167 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
              // CALL THIS METHOD TO GET THE ACTUAL PATH
              File finalFile = new File(getRealPathFromURI(tempUri));
 
+             //saving the picture in the presenter
              mPresenter.savePicture(finalFile.getAbsolutePath());
          }
     }
 
     @Override
-    public void showMessage(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    public void startService() {
+        Intent intent = new Intent(this, RecordMainService.class);
+        startService(intent);
+        bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
-//region utility functions
+
+    @Override
+    public void startRecordingInService(File file) {
+        mService.startRecording(file);
+    }
+
+    @Override
+    public void stopService() {
+        mService.stopForeground(true);
+        stopService(new Intent(this,RecordMainService.class));
+        mRecordingRunning = false;
+    }
+
+    @Override
+    public void unbindService() {
+        this.unbindService(mServiceConnection);
+        mServiceBound = false;
+    }
+
+    @Override
+    public void pauseRecordingInService() {
+        mService.pauseRecording();
+    }
+
+    @Override
+    public void stopRecordingInService() {
+        mService.stopRecording();
+    }
+
+    @Override
+    public void cancelRecordingInService() {
+        mService.cancelRecording();
+    }
+
+
+
+    //region utility functions
+
+    private void saveSharedPreferences(){
+        SharedPreferences sharedPreferences = getSharedPreferences(RecordSharedPreferences.RECORDING_SHARED_PREFERENCE, MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+
+        if(mServiceBound) { //if the service is bound we should save the state of the record
+
+            //saving service Bound state , whether the recording is paused or not , recording path,
+            //whether the chronometer is runnung or not and chronometer pause offset
+            /////////////////////////////////////////////////////////////////////////////////////
+            editor.putBoolean(RecordSharedPreferences.SERVICE_BOUND, true);
+            editor.putBoolean(RecordSharedPreferences.IS_PAUSED, mService.isPaused());
+            editor.putString(RecordSharedPreferences.RECORD_PATH , mService.filePath());
+            editor.putBoolean(RecordSharedPreferences.IS_CHRONOMETER_RUNNING , mChronometerRunning);
+            editor.putLong(RecordSharedPreferences.CHRONOMETER_PAUSE_OFFSET , mChronometerPauseOffset);
+            ///////////////////////////////////////////////////////////////////////////////////
+
+            //saving pictures taken
+            //////////////////////////////////////////////////////////////////////
+            Gson picturesGson = new Gson();
+            String picturesJson = picturesGson.toJson(mPresenter.getPicturesTaken());
+            editor.putString(RecordSharedPreferences.PICTURES_TAKEN, picturesJson);
+            /////////////////////////////////////////////////////////////////
+
+            //saving snap times
+            ///////////////////////////////////////////////////////////////////////
+            Gson snapsGson = new Gson();
+            String snapsJson = snapsGson.toJson(mPresenter.getSnapTimes());
+            editor.putString(RecordSharedPreferences.SNAP_TIMES, snapsJson);
+            ///////////////////////////////////////////////////////////////////////
+
+        } else { //if the service wasnt bound we should save the service bound state only
+            editor.putBoolean(RecordSharedPreferences.SERVICE_BOUND, false);
+        }
+        editor.apply();
+    }
+
+
+    private void loadSharedPreferences() {
+        SharedPreferences sharedPreferences = getSharedPreferences(RecordSharedPreferences.RECORDING_SHARED_PREFERENCE
+                , MODE_PRIVATE);
+        mServiceBound = sharedPreferences.getBoolean(RecordSharedPreferences.SERVICE_BOUND, false);
+       // mServiceBound = false;
+
+
+        if(mServiceBound) {//if a service was bound we should load the other variables
+            //if a service was bound to the activity it means that the service was started and we need to rebind to it
+            Intent intent = new Intent(this, RecordMainService.class);
+            bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
+
+            mRecordingRunning = true;
+
+            //loading audio path, whether the recording is paused or not , whether the chronometer is running or not
+            // and chronometer pause offset
+            ///////////////////////////////////////////////////////////////////////////////////////////////////
+            boolean isPaused = sharedPreferences.getBoolean(RecordSharedPreferences.IS_PAUSED , false);
+            String audioPath = sharedPreferences.getString(RecordSharedPreferences.RECORD_PATH , "");
+            String audioName = FilesUtils.getFileNameFromPath(audioPath);
+            mChronometerRunning = sharedPreferences.getBoolean(RecordSharedPreferences.IS_CHRONOMETER_RUNNING ,false);
+            mChronometerPauseOffset = sharedPreferences.getLong(RecordSharedPreferences.CHRONOMETER_PAUSE_OFFSET , 0);
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+            //loading pictures taken arraylist
+            /////////////////////////////////////////////////////////////////////////
+            Gson picturesGson = new Gson();
+            String json = sharedPreferences.getString(RecordSharedPreferences.PICTURES_TAKEN, null);
+            Type type = new TypeToken<ArrayList<Picture>>() {}.getType();
+            ArrayList<Picture> picturesTaken = picturesGson.fromJson(json, type);
+            if (picturesTaken == null) {
+                picturesTaken = new ArrayList<>();
+            }
+            ///////////////////////////////////////////////////////////////////
+
+            //loading snap times ArrayList
+            ///////////////////////////////////////////////////////////////////////////
+            Gson snapsGson = new Gson();
+            json = sharedPreferences.getString(RecordSharedPreferences.SNAP_TIMES , null);
+            type = new TypeToken<ArrayList<String>>() {}.getType();
+            ArrayList<String> snapTimes = snapsGson.fromJson(json, type);
+            if (snapTimes == null) {
+                snapTimes = new ArrayList<>();
+            }
+            /////////////////////////////////////////////////////////////////////////
+
+            //showing appropriate views
+            ///////////////////////////////////////////////////
+            showRecordName(audioName);
+            showCancelButton();
+            enableCancelButton();
+            enableStopButton();
+            enableTakePictureImage();
+            if(isPaused) {
+                showRecordButton();
+            } else {
+                showPauseButton();
+            }
+
+            //todo deal with chronometer
+
+            ///////////////////////////////////////////////
+
+            //sending data to presenter
+            /////////////////////////////////////////////////
+            mPresenter.setPicturesTaken(picturesTaken);
+            mPresenter.setSnapTimes(snapTimes);
+            mPresenter.setIsPaused(isPaused);
+            mPresenter.setOriginalFile(audioPath);
+            /////////////////////////////////////////////////
+        }
+
+    }
 
     private void initializeUI() {
         resetTimer();
@@ -370,6 +541,38 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
         int idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
         return cursor.getString(idx);
     }
+    //endregion
+
+    //region service connection
+    private ServiceConnection mServiceConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            Log.d(TAG, "onServiceDisconnected: ");
+            mServiceBound = false;
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            Log.d(TAG, "onServiceConnected: Entered");
+            RecordMainService.MyBinder myBinder = (RecordMainService.MyBinder) service;
+            mService = myBinder.getService();
+            mServiceBound = true;
+
+            if (!mRecordingRunning) { //if there is no recording running we should start a new one
+                try {
+                    File file = File.createTempFile("sound", ".3gp", mPresenter.getDirectory());
+                    mService.startRecording(file);
+                    mPresenter.setOriginalFile(file.getPath());
+                    showRecordName(file.getName());
+                    Log.d(TAG, "onServiceConnected: startRecording");
+                } catch (Exception e) {
+
+                }
+            }
+        }
+
+    };
     //endregion
 
 }
