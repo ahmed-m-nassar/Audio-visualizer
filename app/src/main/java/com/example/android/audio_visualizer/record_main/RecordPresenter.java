@@ -158,7 +158,6 @@ public class RecordPresenter implements RecordContract.Presenter {
         //dealing with views
         mView.disableTakePictureImage();
         mView.pauseTimer();
-        mView.resetTimer();
         mView.showMicOffPicture();
         mView.showRecordButton();
         mView.disableCancelButton();
@@ -192,6 +191,7 @@ public class RecordPresenter implements RecordContract.Presenter {
             mModel.addAudioPicture(audio_picture);
         }
 
+        mView.resetTimer();
         mIsPaused = false;
     }
 

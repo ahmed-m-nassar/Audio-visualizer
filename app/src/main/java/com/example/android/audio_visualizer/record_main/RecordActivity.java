@@ -416,7 +416,7 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
             editor.putBoolean(RecordSharedPreferences.SERVICE_BOUND, true);
             editor.putBoolean(RecordSharedPreferences.IS_PAUSED, mService.isPaused());
             editor.putString(RecordSharedPreferences.RECORD_PATH , mService.filePath());
-            editor.putBoolean(RecordSharedPreferences.IS_CHRONOMETER_RUNNING , mChronometerRunning);
+            editor.putLong(RecordSharedPreferences.CHRONOMETER_BASE_OFFSET , mTimerChronometer.getBase());
             editor.putLong(RecordSharedPreferences.CHRONOMETER_PAUSE_OFFSET , mChronometerPauseOffset);
             ///////////////////////////////////////////////////////////////////////////////////
 
@@ -461,7 +461,7 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
             boolean isPaused = sharedPreferences.getBoolean(RecordSharedPreferences.IS_PAUSED , false);
             String audioPath = sharedPreferences.getString(RecordSharedPreferences.RECORD_PATH , "");
             String audioName = FilesUtils.getFileNameFromPath(audioPath);
-            mChronometerRunning = sharedPreferences.getBoolean(RecordSharedPreferences.IS_CHRONOMETER_RUNNING ,false);
+            long chronometerBaseOffset = sharedPreferences.getLong(RecordSharedPreferences.CHRONOMETER_BASE_OFFSET ,0);
             mChronometerPauseOffset = sharedPreferences.getLong(RecordSharedPreferences.CHRONOMETER_PAUSE_OFFSET , 0);
             ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -501,8 +501,15 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
                 showPauseButton();
             }
 
-            //todo deal with chronometer
-
+           //chronometer
+            if(isPaused) {
+                mTimerChronometer.setBase(SystemClock.elapsedRealtime() - mChronometerPauseOffset);
+                mChronometerRunning = false;
+            } else {
+                mTimerChronometer.setBase(chronometerBaseOffset);
+                mTimerChronometer.start();
+                mChronometerRunning = true;
+            }
             ///////////////////////////////////////////////
 
             //sending data to presenter
