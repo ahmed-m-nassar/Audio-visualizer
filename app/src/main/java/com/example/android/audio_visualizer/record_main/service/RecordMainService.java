@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.media.AudioFormat;
 import android.media.MediaRecorder;
 import android.os.Binder;
 import android.os.IBinder;
@@ -25,30 +26,41 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+import omrecorder.AudioChunk;
+import omrecorder.AudioRecordConfig;
+import omrecorder.OmRecorder;
+import omrecorder.PullTransport;
+import omrecorder.PullableSource;
+import omrecorder.Recorder;
+
 import static com.example.android.audio_visualizer.base.notification_channels.RecordingNotificationChannel.CHANNEL_ID;
 
 public class RecordMainService extends Service {
-    static String LOG_TAG = "BoundService";
+    static String TAG = "BoundService";
     final IBinder mBinder = new MyBinder();
 
-
-    ArrayList<String> sourceFiles = new ArrayList<>();
+    public static boolean isServiceRunning = false;
 
     private ArrayList<String>   mAudioFiles;  //all audio files paths recorded to be merged when user stops the record
-
-    private MediaRecorder       mRecorder;
+    private Recorder            mRecorder;
     private boolean             mIsPaused; //checks if the audio is paused or not
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-    }
 
     @Override
     public void onCreate() {
         super.onCreate();
+        isServiceRunning = true;
         mAudioFiles = new ArrayList<>();
     }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        stopForeground(true);
+        isServiceRunning = false;
+    }
+
+
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -73,16 +85,21 @@ public class RecordMainService extends Service {
     public boolean startRecording(File file) {
 
         try {
-            mRecorder = new MediaRecorder();
-            mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-            mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-            mRecorder.setOutputFile(file.getPath());
-            mRecorder.prepare();
-            mRecorder.start();
-
-            //saving the file path to merge it later with the rest of Audio files
             mAudioFiles.add(file.getPath());
+            mRecorder = OmRecorder.wav(
+                    new PullTransport.Default(new PullableSource.AutomaticGainControl(
+                            new PullableSource.Default(
+                                    new AudioRecordConfig.Default(
+                                            MediaRecorder.AudioSource.MIC, AudioFormat.ENCODING_PCM_16BIT,
+                                            AudioFormat.CHANNEL_IN_MONO, 32000
+                                    )
+                            )
+                    ), new PullTransport.OnAudioChunkPulledListener() {
+                        @Override public void onAudioChunkPulled(AudioChunk audioChunk) {
+                        }
+                    }), file);
+
+            mRecorder.startRecording();
 
             mIsPaused = false;
             return true;
@@ -92,55 +109,52 @@ public class RecordMainService extends Service {
     }
 
     public void stopRecording () {
-        //saving audio
-        if(!mIsPaused) {
-            mRecorder.stop();
+        try{
+            mRecorder.stopRecording();
+        } catch (Exception e) {
+            //todo implement
         }
 
-        //merging audio files
-        String[] sourceFiles = new String[mAudioFiles.size()];
-        sourceFiles = mAudioFiles.toArray(sourceFiles);
-        FilesUtils.mergeMediaFiles(true , sourceFiles , sourceFiles[0]);
-
-        //deleting unneeded files
         for(int i = 1 ; i < mAudioFiles.size() ; i++) {
-            File audioFile = new File (mAudioFiles.get(i));
-            if(audioFile.exists()) {
-                audioFile.delete();
-            }
+            FilesUtils.CombineWaveFile(mAudioFiles.get(0) , mAudioFiles.get(i));
         }
-        //clearing audio files
-        mAudioFiles.clear();
 
         //saving audio state
         mIsPaused = false;
-
-
+        mAudioFiles.clear();
     }
 
     public void pauseRecording() {
         //stopping recorder to merge it when user stops the record
-        mRecorder.stop();
+        try {
+            mRecorder.stopRecording();
+        } catch (Exception e) {
+
+        }
 
         //saving audio state
         mIsPaused = true;
     }
 
     public void cancelRecording() {
-        //stopping and deleting record
-        if(!mIsPaused) //if the record is On -> stop it
-            mRecorder.stop();
+        //stopping  record
+        try {
+            mRecorder.stopRecording();
+        } catch (Exception e) {
+            //todo implement
+        }
 
-        for(int i = 0 ; i < mAudioFiles.size() ; i++) { //deleting all recorded files
-            File audioFile = new File (mAudioFiles.get(i));
-            if(audioFile.exists()) {
-                audioFile.delete();
+        //deleting record
+        for (int i = 0 ; i < mAudioFiles.size() ; i++) {
+            File file = new File(mAudioFiles.get(i));
+            if(file.exists()) {
+                file.delete();
             }
         }
-        mAudioFiles.clear();
 
         //saving audio state
         mIsPaused = false;
+        mAudioFiles.clear();
     }
     public boolean isPaused() {
         return mIsPaused;
@@ -149,6 +163,7 @@ public class RecordMainService extends Service {
     public String filePath() {
         return mAudioFiles.get(0);
     }
+
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {

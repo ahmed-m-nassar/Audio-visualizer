@@ -39,15 +39,15 @@ public class AudiosListPresenter implements AudiosListContract.Presenter {
     }
 
     @Override
-    public void updateRecordName(String path, String name) {
+    public void updateRecordName(String path, String newName) {
         //checking if the file exists
         File tempFile = new File(path);
         if(tempFile.exists()) {
             try {
-                name = FilesUtils.replacingInvalidFileNameCharacters(name);
-                name = FilesUtils.addExtentionToFileName(name);
-                tempFile.renameTo(new File(name));
-                mModel.updateAudio(path,name);
+                newName = FilesUtils.replacingInvalidFileNameCharacters(newName);
+                newName = FilesUtils.addExtentionToFileName(newName);
+                tempFile.renameTo(new File(newName));
+                mModel.updateAudio(path,newName);
             } catch (Exception e) {
                 mView.showMessage("Cant rename file");
             }

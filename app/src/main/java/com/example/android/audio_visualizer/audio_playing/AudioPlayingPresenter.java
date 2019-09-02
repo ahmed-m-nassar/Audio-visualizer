@@ -15,15 +15,28 @@ public class AudioPlayingPresenter implements AudioPlayingContract.Presenter {
         mModel =  new AudioPlayingLocalServicesImpl();
     }
 
-
+    @Override
+    public void getAudioPictures(String audioPath) {
+        mView.fillPicturesList(mModel.getAudioPictures(audioPath));
+    }
 
     @Override
-    public void volumeButtonClicked() {
+    public void playButtonPressed() {
 
     }
 
     @Override
-    public void getAudioPictures(String audioPath) {
-        mView.fillPicturesList(mModel.getAudioPictures(audioPath));
+    public void pauseButtonPressed() {
+
+    }
+
+    @Override
+    public void stopButtonPressed() {
+
+    }
+
+    @Override
+    public void volumeButtonPressed() {
+
     }
 }

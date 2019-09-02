@@ -46,8 +46,6 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
 
     private MediaPlayer           mMediaPlayer;
 
-    private Thread                mAudioThread;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -78,24 +76,6 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
         //preparing media player
         prepareMediaPlayer();
 
-        // Thread (Update positionBar & timeLabel)
-        ///////////////////////////////////////////////////////////////////////
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (mMediaPlayer != null) {
-                    try {
-                        Message msg = new Message();
-                        msg.what = mMediaPlayer.getCurrentPosition();
-                        Log.d(TAG, "run: " + mMediaPlayer.getCurrentPosition());
-                        handler.sendMessage(msg);
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {}
-                }
-            }
-        }).start();
-        /////////////////////////////////////////////////////////////////////
-
         //listeners
         ///////////////////////////////////////////////////////////////////////
 
@@ -103,6 +83,7 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
             @Override
             public void onClick(View v) {
                 mMediaPlayer.start();
+                startChangingUIThread();
                 showPauseButton();
             }
         });
@@ -118,20 +99,15 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
         mStopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                handler.removeCallbacksAndMessages(null);
-                mMediaPlayer.stop();
-                mSeekBar.setProgress(0);
-                mMediaPlayer.seekTo(0);
-                mAudioCurrentTime.setText("0:00");
-
-                showPlayButton();
+               resetAudio();
+               showPlayButton();
             }
         });
 
         mVolumeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mPresenter.volumeButtonClicked();
+                mPresenter.volumeButtonPressed();
             }
         });
 
@@ -139,7 +115,7 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
                 new SeekBar.OnSeekBarChangeListener() {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                        if (fromUser) {
+                        if (fromUser && mMediaPlayer!= null) {
                             mMediaPlayer.seekTo(progress);
                             mSeekBar.setProgress(progress);
                         }
@@ -157,15 +133,10 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
                 }
         );
 
-        //todo implement
         mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
-                mMediaPlayer.stop();
-                mSeekBar.setProgress(0);
-                mMediaPlayer.seekTo(0);
-                mAudioCurrentTime.setText("0:00");
-
+                resetAudio();
                 showPlayButton();
             }
         });
@@ -173,22 +144,19 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
 
         //getting Audio pictures
         mPresenter.getAudioPictures(mAudioPath);
+
+        //starting media player
+        mMediaPlayer.start();
+        startChangingUIThread();
     }
 
-    private Handler handler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            int currentPosition = msg.what;
-            // Update positionBar.
-            mSeekBar.setProgress(currentPosition);
 
-            // Update current time text view
-            String elapsedTime = DateTimeUtils.createTimeLabel(currentPosition);
-            mAudioCurrentTime.setText(elapsedTime);
-
-        }
-    };
-
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mMediaPlayer.stop();k
+        mMediaPlayer = null;
+    }
 
     @Override
     public void fillPicturesList(ArrayList<Audio_Picture> audio_pictures) {
@@ -214,6 +182,32 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
         mPlayButton.setVisibility(View.GONE);
     }
 
+
+
+    @Override
+    public void startChangingUIThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (mMediaPlayer != null && mMediaPlayer.isPlaying()) {
+                    final int currentPos = mMediaPlayer.getCurrentPosition();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mSeekBar.setProgress(currentPos);
+                            mAudioCurrentTime.setText(DateTimeUtils.createTimeLabel(currentPos));
+                        }
+                    });
+                    try {
+                        Thread.sleep(300);
+                    } catch (Exception e) {
+
+                    }
+                }
+            }
+        }).start();
+    }
+
     @Override
     public View.OnClickListener pictureClicked(final Bitmap picBitmap) {
         return new View.OnClickListener() {
@@ -231,9 +225,17 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
         mMediaPlayer =  MediaPlayer.create(this, Uri.parse(mAudioPath));
         mMediaPlayer.setLooping(true);
         mMediaPlayer.seekTo(0);
-        mMediaPlayer.start();
         mSeekBar.setMax(mMediaPlayer.getDuration());
         mAudioFullTime.setText(DateTimeUtils.createTimeLabel(mMediaPlayer.getDuration()));
+    }
+
+
+
+    private void resetAudio() {
+        mMediaPlayer.pause();
+        mSeekBar.setProgress(0);
+        mMediaPlayer.seekTo(0);
+        mAudioCurrentTime.setText("0:00");
     }
     //endregion
 }

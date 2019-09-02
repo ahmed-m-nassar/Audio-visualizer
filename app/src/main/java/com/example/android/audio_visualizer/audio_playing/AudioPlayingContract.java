@@ -10,17 +10,20 @@ public interface AudioPlayingContract {
         void fillPicturesList(ArrayList<Audio_Picture> audio_pictures);
 
         void showVolume();
-
-        //todo check if u need these fns
         void showPlayButton();
         void showPauseButton();
 
 
+
+        void startChangingUIThread();
     }
 
     interface Presenter {
-
-        void volumeButtonClicked();
         void getAudioPictures(String audioPath);
+
+        void playButtonPressed();
+        void pauseButtonPressed();
+        void stopButtonPressed();
+        void volumeButtonPressed();
     }
 }

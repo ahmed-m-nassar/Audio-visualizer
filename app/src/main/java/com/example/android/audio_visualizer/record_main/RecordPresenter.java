@@ -1,6 +1,7 @@
 package com.example.android.audio_visualizer.record_main;
 
 import android.media.MediaRecorder;
+import android.util.Log;
 
 
 import com.example.android.audio_visualizer.models.Audio;
@@ -21,6 +22,7 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 public class RecordPresenter implements RecordContract.Presenter {
+    private static final String TAG = "RecordPresenter";
 
     private RecordContract.View mView;
     private RecordLocalServices mModel;
@@ -28,7 +30,7 @@ public class RecordPresenter implements RecordContract.Presenter {
     private File                mOriginalAudioFile; //first audio file created (used to merge all recorded files into it)
     private boolean             mIsPaused; //checks if the audio is paused or not
 
-    private ArrayList<Picture> mPicturesTaken; // all pictures taken paths to be saved in the database when user stops the record
+    private ArrayList<Picture>  mPicturesTaken; // all pictures taken paths to be saved in the database when user stops the record
     private ArrayList<String>   mPicsSnapTimes; //pictures snap time
 
     public RecordPresenter(RecordContract.View view) {

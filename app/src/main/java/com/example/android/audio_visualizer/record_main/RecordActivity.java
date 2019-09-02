@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Environment;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.provider.MediaStore;
@@ -40,6 +41,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.UUID;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -442,19 +444,20 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
 
 
     private void loadSharedPreferences() {
-        SharedPreferences sharedPreferences = getSharedPreferences(RecordSharedPreferences.RECORDING_SHARED_PREFERENCE
-                , MODE_PRIVATE);
-        mServiceBound = sharedPreferences.getBoolean(RecordSharedPreferences.SERVICE_BOUND, false);
+
+      //  mServiceBound = sharedPreferences.getBoolean(RecordSharedPreferences.SERVICE_BOUND, false);
        // mServiceBound = false;
 
 
-        if(mServiceBound) {//if a service was bound we should load the other variables
-            //if a service was bound to the activity it means that the service was started and we need to rebind to it
+        if(RecordMainService.isServiceRunning) {//if a service is running we should load the other variables
+            //rebinding to the service
             Intent intent = new Intent(this, RecordMainService.class);
             bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
 
             mRecordingRunning = true;
 
+            SharedPreferences sharedPreferences = getSharedPreferences(RecordSharedPreferences.RECORDING_SHARED_PREFERENCE
+                    , MODE_PRIVATE);
             //loading audio path, whether the recording is paused or not , whether the chronometer is running or not
             // and chronometer pause offset
             ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -568,7 +571,8 @@ public class RecordActivity extends AppCompatActivity implements RecordContract.
 
             if (!mRecordingRunning) { //if there is no recording running we should start a new one
                 try {
-                    File file = File.createTempFile("sound", ".3gp", mPresenter.getDirectory());
+                    File file =  new File(mPresenter.getDirectory()
+                            , UUID.randomUUID().toString().substring(0,10) +".wav");
                     mService.startRecording(file);
                     mPresenter.setOriginalFile(file.getPath());
                     showRecordName(file.getName());
