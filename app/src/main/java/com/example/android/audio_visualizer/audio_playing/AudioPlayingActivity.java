@@ -1,6 +1,9 @@
 package com.example.android.audio_visualizer.audio_playing;
 
+import android.content.Context;
 import android.graphics.Bitmap;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Handler;
@@ -14,6 +17,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.android.audio_visualizer.audio_playing.adapter.PicturesListAdapter;
 import com.example.android.audio_visualizer.audio_playing.adapter.PicuresListClickListeners;
@@ -27,10 +31,13 @@ import de.hdodenhof.circleimageview.CircleImageView;
 
 public class AudioPlayingActivity extends AppCompatActivity implements AudioPlayingContract.View , PicuresListClickListeners {
 
+    //tag
     private static final String TAG = "AudioPlayingActivity";
 
+    //presenter
     private AudioPlayingPresenter mPresenter;
 
+    //views
     private ImageView             mPictureChoosen;
     private TextView              mAudioName;
     private TextView              mAudioCurrentTime;
@@ -42,9 +49,16 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
     private CircleImageView       mStopButton;
     private RecyclerView          mPicturesList;
 
+    //audio path
     private String                mAudioPath;
 
+    //media player
     private MediaPlayer           mMediaPlayer;
+
+    //audio manager
+    private AudioManager                                mAudioManager;
+    private AudioManager.OnAudioFocusChangeListener     mAudioFocusChangeListener;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,48 +87,90 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
         mAudioPath = getIntent().getStringExtra(getString(R.string.AudioPathExtra));
         ////////////////////////////////////////////////////////////////////////////////////////
 
+        //audio manager
+        mAudioManager = (AudioManager) getBaseContext().getSystemService(Context.AUDIO_SERVICE);
+
         //preparing media player
         prepareMediaPlayer();
 
         //listeners
-        ///////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////
+        //audio focus change listener to react to audio focus changes
+        mAudioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
+            @Override
+            public void onAudioFocusChange(int focusChange) {
+                if(focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+                    if(mMediaPlayer != null) {
+                        mMediaPlayer.start();
+                        showPauseButton();
+                    }
 
+                    Log.d(TAG, "onAudioFocusChange: focus gained");
+                } else if(focusChange == AudioManager.AUDIOFOCUS_LOSS ||
+                        focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
+                        focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) { // loss of focus
+
+                    mAudioManager.abandonAudioFocus(mAudioFocusChangeListener);
+                    if(mMediaPlayer != null && mMediaPlayer.isPlaying()) {
+                        mMediaPlayer.pause();
+                        showPlayButton();
+                    }
+                }
+            }
+        };
+
+        //play button click listener
         mPlayButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mMediaPlayer.start();
-                startChangingUIThread();
-                showPauseButton();
+                if(mMediaPlayer != null) {
+                  playAudio();
+                } else {
+                    Toast.makeText(AudioPlayingActivity.this, "Error", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
+        //pause button click listener
         mPauseButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                mAudioManager.abandonAudioFocus(mAudioFocusChangeListener);
                 mMediaPlayer.pause();
                 showPlayButton();
             }
         });
 
+        //stop button click listener
         mStopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-               resetAudio();
-               showPlayButton();
+                mAudioManager.abandonAudioFocus(mAudioFocusChangeListener);
+                resetAudio();
+                showPlayButton();
             }
         });
 
+        //volume button click listener
         mVolumeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mPresenter.volumeButtonPressed();
+                //showing the volume
+                mAudioManager.setStreamVolume(
+                        AudioManager.STREAM_MUSIC, // Stream type
+                        mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC), // Index
+                        AudioManager.FLAG_SHOW_UI // Flags
+                );
             }
         });
 
+        //seek bar change listener
         mSeekBar.setOnSeekBarChangeListener(
                 new SeekBar.OnSeekBarChangeListener() {
                     @Override
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        //if the user changed the progress of the seek bar we should change the progress
+                        //of the media player
                         if (fromUser && mMediaPlayer!= null) {
                             mMediaPlayer.seekTo(progress);
                             mSeekBar.setProgress(progress);
@@ -133,59 +189,138 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
                 }
         );
 
+        //media player on completion listener
         mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
+                mAudioManager.abandonAudioFocus(mAudioFocusChangeListener);
                 resetAudio();
                 showPlayButton();
             }
         });
-        ///////////////////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////
 
         //getting Audio pictures
         mPresenter.getAudioPictures(mAudioPath);
 
-        //starting media player
-        mMediaPlayer.start();
-        startChangingUIThread();
+        //playing the audio
+        playAudio();
+
     }
 
-
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        mMediaPlayer.stop();k
-        mMediaPlayer = null;
+    public void onBackPressed() {
+        super.onBackPressed();
+
+        //when back button is pressed we should stop the audio playing and abandon the audio focus
+        if(mMediaPlayer != null) {
+            mAudioManager.abandonAudioFocus(mAudioFocusChangeListener);
+            mMediaPlayer.stop();
+            mMediaPlayer.release();
+            mMediaPlayer = null;
+        }
     }
 
     @Override
     public void fillPicturesList(ArrayList<Audio_Picture> audio_pictures) {
         PicturesListAdapter adapter = new PicturesListAdapter(audio_pictures , getBaseContext() , this);
-        mPicturesList.setAdapter(adapter);
         mPicturesList.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, true));
+        mPicturesList.setAdapter(adapter);
     }
 
-    @Override
-    public void showVolume() {
-        //todo implement
-    }
+
 
     @Override
-    public void showPlayButton() {
+    public View.OnClickListener pictureClicked(final Bitmap picBitmap) {
+        return new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //showing the picture selected on mPictureChoosen image view
+                mPictureChoosen.setImageBitmap(picBitmap);
+            }
+        };
+    }
+
+    //region utility functions
+
+    /**
+     * shows play button and hides pause button
+     */
+    private void showPlayButton() {
         mPauseButton.setVisibility(View.GONE);
         mPlayButton.setVisibility(View.VISIBLE);
     }
 
-    @Override
-    public void showPauseButton() {
+
+    /**
+     * shows pause button and hides play button
+     */
+    private void showPauseButton() {
         mPauseButton.setVisibility(View.VISIBLE);
         mPlayButton.setVisibility(View.GONE);
     }
 
 
+    /**
+     * preparing MediaPlayer's object and preparing views
+     */
+    private void prepareMediaPlayer() {
+        //preparing media player
+        mMediaPlayer =  MediaPlayer.create(this, Uri.parse(mAudioPath));
+        mMediaPlayer.setLooping(true);
+        mMediaPlayer.setVolume(1.0f , 1.0f);
+        mMediaPlayer.seekTo(0);
 
-    @Override
-    public void startChangingUIThread() {
+        //preparing views
+        mSeekBar.setMax(mMediaPlayer.getDuration());
+        mAudioFullTime.setText(DateTimeUtils.createTimeLabel(mMediaPlayer.getDuration()));
+    }
+
+    /**
+     * requesting the audio focus and playing the audio if the request was granted
+     * @return
+     */
+    private boolean playAudio() {
+        int audioFocusResult = mAudioManager.requestAudioFocus(mAudioFocusChangeListener ,
+                AudioManager.STREAM_MUSIC ,
+                AudioManager.AUDIOFOCUS_GAIN);
+        //if the audio focus was granted we should play the voice
+        if(audioFocusResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            //start playing the voice
+            mMediaPlayer.start();
+
+            //start changing the seek bar and timer in background thread
+            startChangingUIThread();
+
+            //showing the pause button as the audio started playing
+            showPauseButton();
+
+            return true;
+        }
+
+        return false;
+    }
+
+
+    /**
+     * resets audio by restarting it from the beginning and resetting views
+     */
+    private void resetAudio() {
+        //resetting audio
+        mMediaPlayer.pause();
+        mMediaPlayer.seekTo(0);
+
+        //resetting views
+        mSeekBar.setProgress(0);
+        mAudioCurrentTime.setText("0:00");
+    }
+
+
+    /**
+     * background thread to start moving the seek bar and setting the mAudioCurrentTime text view
+     * according to the current progress of the media player
+     */
+    private void startChangingUIThread() {
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -201,41 +336,11 @@ public class AudioPlayingActivity extends AppCompatActivity implements AudioPlay
                     try {
                         Thread.sleep(300);
                     } catch (Exception e) {
-
+                        e.printStackTrace();
                     }
                 }
             }
         }).start();
-    }
-
-    @Override
-    public View.OnClickListener pictureClicked(final Bitmap picBitmap) {
-        return new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mPictureChoosen.setImageBitmap(picBitmap);
-               // Toast.makeText(getBaseContext(), , Toast.LENGTH_SHORT).show();
-            }
-        };
-    }
-
-    //region utility functions
-
-    public void prepareMediaPlayer() {
-        mMediaPlayer =  MediaPlayer.create(this, Uri.parse(mAudioPath));
-        mMediaPlayer.setLooping(true);
-        mMediaPlayer.seekTo(0);
-        mSeekBar.setMax(mMediaPlayer.getDuration());
-        mAudioFullTime.setText(DateTimeUtils.createTimeLabel(mMediaPlayer.getDuration()));
-    }
-
-
-
-    private void resetAudio() {
-        mMediaPlayer.pause();
-        mSeekBar.setProgress(0);
-        mMediaPlayer.seekTo(0);
-        mAudioCurrentTime.setText("0:00");
     }
     //endregion
 }

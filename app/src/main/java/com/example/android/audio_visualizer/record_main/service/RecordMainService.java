@@ -142,6 +142,7 @@ public class RecordMainService extends Service {
             mRecorder.stopRecording();
         } catch (Exception e) {
             //todo implement
+            e.printStackTrace();
         }
 
         //deleting record

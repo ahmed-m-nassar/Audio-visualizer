@@ -20,23 +20,4 @@ public class AudioPlayingPresenter implements AudioPlayingContract.Presenter {
         mView.fillPicturesList(mModel.getAudioPictures(audioPath));
     }
 
-    @Override
-    public void playButtonPressed() {
-
-    }
-
-    @Override
-    public void pauseButtonPressed() {
-
-    }
-
-    @Override
-    public void stopButtonPressed() {
-
-    }
-
-    @Override
-    public void volumeButtonPressed() {
-
-    }
 }

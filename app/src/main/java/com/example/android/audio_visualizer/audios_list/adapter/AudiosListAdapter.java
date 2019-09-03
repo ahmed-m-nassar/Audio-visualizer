@@ -31,32 +31,31 @@ public class AudiosListAdapter extends ArrayAdapter<Audio> {
     @NonNull
     @Override
     public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-        final Audio Item = getItem(position);
-        View ListItemView = convertView;
-        if(ListItemView == null)
+        final Audio item = getItem(position);
+        View listItemView = convertView;
+        if(listItemView == null)
         {
-            ListItemView = LayoutInflater.from(getContext()).inflate(R.layout.audio_list_item,parent,false);
+            listItemView = LayoutInflater.from(getContext()).inflate(R.layout.audio_list_item,parent,false);
         }
 
         //getting views
-        final RelativeLayout parentLayout = (RelativeLayout)ListItemView.findViewById(R.id.AudioListItem_Parent_RelativeLayout);
-        TextView audioName =   ListItemView.findViewById(R.id.AudioListItem_AudioName_TextView);
-        TextView audioDuration =  ListItemView.findViewById(R.id.AudioListItem_Duration_TextView);
-        TextView audioDate =  ListItemView.findViewById(R.id.AudioListItem_Date_TextView);
-        TextView audioPath =  ListItemView.findViewById(R.id.AudioListItem_Path_TextView);
+        final RelativeLayout parentLayout = (RelativeLayout)listItemView.findViewById(R.id.AudioListItem_Parent_RelativeLayout);
+        TextView audioName =   listItemView.findViewById(R.id.AudioListItem_AudioName_TextView);
+        TextView audioDuration =  listItemView.findViewById(R.id.AudioListItem_Duration_TextView);
+        TextView audioDate =  listItemView.findViewById(R.id.AudioListItem_Date_TextView);
+        TextView audioPath =  listItemView.findViewById(R.id.AudioListItem_Path_TextView);
         //setting data
-        audioName.setText(Item.getmName());
-        audioDuration.setText(String.valueOf(Item.getmDuration()));
-        audioDate.setText(Item.getmDate());
-        //Todo is it good to add non visible view just to carry important info which i will use later if the view is clicked?
-        audioPath.setText(Item.getmPath());
+        audioName.setText(item.getmName());
+        audioDuration.setText(String.valueOf(item.getmDuration()));
+        audioDate.setText(item.getmDate());
+
 
         //click listeners
         /////////////////////////////////////////////////////////////////////////
         parentLayout.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                mClickListeners.optionsMenuClicked(Item , parentLayout);
+                mClickListeners.optionsMenuClicked(item , parentLayout);
                 return true;
             }
         });
@@ -64,11 +63,11 @@ public class AudiosListAdapter extends ArrayAdapter<Audio> {
         parentLayout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mClickListeners.listItemClicked(Item);
+                mClickListeners.listItemClicked(item);
             }
         });
         ///////////////////////////////////////////////////////////////////////////
 
-        return ListItemView;
+        return listItemView;
     }
 }
